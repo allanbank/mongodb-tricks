@@ -1,0 +1,60 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>com.allanbank</groupId>
+	<artifactId>mongodb-tricks</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<name>MongoDB Queue</name>
+	<description>Example of using MongoDB as a queue and as a coordination service</description>
+	<organization>
+		<name>Allanbank Consulting, Inc.</name>
+		<url>http://www.allanbank.com/</url>
+	</organization>
+	<inceptionYear>2012</inceptionYear>
+	<licenses>
+		<license>
+			<name>Apache License, Version 2.0</name>
+			<url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+		</license>
+	</licenses>
+
+	<dependencies>
+		<dependency>
+			<groupId>com.allanbank</groupId>
+			<artifactId>mongodb-async-driver</artifactId>
+			<version>1.1.1-SNAPSHOT</version>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<configuration>
+					<source>1.6</source>
+					<target>1.6</target>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+
+	<repositories>
+		<repository>
+			<releases>
+				<enabled>true</enabled>
+				<updatePolicy>always</updatePolicy>
+				<checksumPolicy>warn</checksumPolicy>
+			</releases>
+			<snapshots>
+				<enabled>false</enabled>
+				<updatePolicy>never</updatePolicy>
+				<checksumPolicy>fail</checksumPolicy>
+			</snapshots>
+			<id>allanbank</id>
+			<name>Allanbank Releases</name>
+			<url>http://www.allanbank.com/repo/</url>
+			<layout>default</layout>
+		</repository>
+	</repositories>
+</project>
