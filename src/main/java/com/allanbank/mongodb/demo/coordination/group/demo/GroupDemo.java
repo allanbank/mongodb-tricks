@@ -65,15 +65,16 @@ public class GroupDemo {
             public void memberRemoved(String context) {
                 System.out.println(context + " - Removed");
             }
-
+        
             @Override
             public void memberAdded(String context) {
                 System.out.println(context + " - Added");
             }
         });
-
+        manager.start();
+        
         final GroupMember member = manager.addMember();
-
+        
         // Faster cleanup, if we can.
         Runtime.getRuntime().addShutdownHook(new Thread() {
             @Override

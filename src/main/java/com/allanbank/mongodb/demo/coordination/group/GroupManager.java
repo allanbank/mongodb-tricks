@@ -15,7 +15,12 @@
  */
 package com.allanbank.mongodb.demo.coordination.group;
 
+import static com.allanbank.mongodb.Durability.ACK;
+import static com.allanbank.mongodb.builder.MiscellaneousOperator.IN;
 import static com.allanbank.mongodb.builder.QueryBuilder.where;
+import static com.allanbank.mongodb.demo.coordination.watch.Operation.DELETE;
+import static com.allanbank.mongodb.demo.coordination.watch.Operation.UPDATE;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 import java.lang.ref.WeakReference;
 import java.util.Date;
@@ -37,7 +42,6 @@ import com.allanbank.mongodb.bson.builder.ArrayBuilder;
 import com.allanbank.mongodb.bson.builder.BuilderFactory;
 import com.allanbank.mongodb.bson.builder.DocumentBuilder;
 import com.allanbank.mongodb.bson.element.ObjectId;
-import com.allanbank.mongodb.builder.MiscellaneousOperator;
 import com.allanbank.mongodb.demo.coordination.watch.Operation;
 import com.allanbank.mongodb.demo.coordination.watch.WatchListener;
 import com.allanbank.mongodb.demo.coordination.watch.Watcher;
@@ -71,10 +75,10 @@ public class GroupManager {
     private final String myRootContext;
 
     /** The scheduled task for updating the timestamp for each group member. */
-    private final ScheduledFuture<?> myScheduledTask;
+    private ScheduledFuture<?> myScheduledTask;
 
     /** The watcher for updates to the group. */
-    private Watcher myWatcher;
+    private final Watcher myWatcher;
 
     /**
      * Creates a new GroupManager.
@@ -100,10 +104,8 @@ public class GroupManager {
         myListeners = new CopyOnWriteArrayList<GroupListener>();
         myListener = new GroupWatchListener();
 
-        myWatcher = null;
-
-        myScheduledTask = myExecutor.scheduleAtFixedRate(
-                new PeriodicUpdateRunnable(), 1, 5, TimeUnit.SECONDS);
+        myWatcher = new Watcher(myMongoClient, myCollection,
+                Pattern.compile(myRootContext + ".*"), myListener);
     }
 
     /**
@@ -113,15 +115,6 @@ public class GroupManager {
      *            The listener to add.
      */
     public void addListener(final GroupListener listener) {
-        if (myListeners.isEmpty()) {
-            synchronized (this) {
-                if (myWatcher == null) {
-                    myWatcher = new Watcher(myMongoClient, myCollection,
-                            Pattern.compile(myRootContext + ".*"), myListener);
-                    myWatcher.start();
-                }
-            }
-        }
         myListeners.add(listener);
     }
 
@@ -155,27 +148,36 @@ public class GroupManager {
      */
     public void removeListener(final GroupListener listener) {
         myListeners.remove(listener);
-        if (myListeners.isEmpty()) {
-            synchronized (this) {
-                if ((myWatcher != null) && myListeners.isEmpty()) {
-                    myWatcher.stop();
-                    myWatcher = null;
-                }
-            }
+    }
+
+    /**
+     * Restarts the GroupManager.
+     */
+    public synchronized void restart() {
+        stop();
+        start();
+    }
+
+    /**
+     * Starts the GroupManager.
+     */
+    public synchronized void start() {
+        if (myScheduledTask == null) {
+            myScheduledTask = myExecutor.scheduleAtFixedRate(
+                    new PeriodicUpdateRunnable(), 1, 5, TimeUnit.SECONDS);
         }
+        myWatcher.start();
     }
 
     /**
      * Stops the {@link GroupManager}.
      */
-    public void stop() {
-        myScheduledTask.cancel(false);
-        synchronized (this) {
-            if (myWatcher != null) {
-                myWatcher.stop();
-                myWatcher = null;
-            }
+    public synchronized void stop() {
+        if (myScheduledTask != null) {
+            myScheduledTask.cancel(false);
+            myScheduledTask = null;
         }
+        myWatcher.stop();
     }
 
     /**
@@ -188,7 +190,7 @@ public class GroupManager {
      */
     protected void notifyListeners(final Operation op, final String context) {
         for (final GroupListener listener : myListeners) {
-            if (op == Operation.DELETE) {
+            if (op == DELETE) {
                 listener.memberRemoved(context);
             }
             else {
@@ -207,11 +209,12 @@ public class GroupManager {
 
         final DocumentBuilder removeQuery = BuilderFactory.start();
         final ArrayBuilder removeIds = removeQuery.push("_id").pushArray(
-                MiscellaneousOperator.IN.getToken());
+                IN.getToken());
 
         final DocumentBuilder updateQuery = BuilderFactory.start();
         final ArrayBuilder updateIds = updateQuery.push("_id").pushArray(
-                MiscellaneousOperator.IN.getToken());
+                IN.getToken());
+
         for (final Map.Entry<String, WeakReference<GroupMember>> entry : myMembers
                 .entrySet()) {
             final GroupMember member = entry.getValue().get();
@@ -227,19 +230,18 @@ public class GroupManager {
         }
 
         if (haveRemove) {
-            myCollection.delete(removeQuery, false, Durability.ACK);
+            myCollection.delete(removeQuery, false, ACK);
         }
 
         if (haveUpdate) {
             DocumentBuilder update = BuilderFactory.start();
             update.push("$set").add("ts", new Date());
-            myCollection.update(updateQuery, update, true, false,
-                    Durability.ACK);
+            myCollection.update(updateQuery, update, true, false, ACK);
         }
 
         // Now delete the stale members.
         myCollection.delete(where("ts").lessThanTimestamp(
-                System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(30)));
+                System.currentTimeMillis() - SECONDS.toMillis(30)));
     }
 
     /**
@@ -252,7 +254,7 @@ public class GroupManager {
         @Override
         public void changed(final Operation op, final String context,
                 final Document document) {
-            if (op != Operation.UPDATE) {
+            if (op != UPDATE) {
                 notifyListeners(op, context);
             }
         }

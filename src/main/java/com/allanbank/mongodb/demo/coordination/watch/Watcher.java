@@ -26,6 +26,7 @@ import com.allanbank.mongodb.Callback;
 import com.allanbank.mongodb.MongoClient;
 import com.allanbank.mongodb.MongoCollection;
 import com.allanbank.mongodb.MongoCursorControl;
+import com.allanbank.mongodb.MongoDatabase;
 import com.allanbank.mongodb.StreamCallback;
 import com.allanbank.mongodb.bson.Document;
 import com.allanbank.mongodb.bson.DocumentAssignable;
@@ -102,30 +103,32 @@ public class Watcher {
             final String ns = myCollection.getDatabaseName() + "."
                     + myCollection.getName();
 
-            final DocumentAssignable wantQuery = or(
-                    where("ns").equals(ns).and("op")
-                            .in(constant("i"), constant("d")).and("o._id")
-                            .matches(myContext),
-                    where("ns").equals(ns).and("op").equals("u").and("o2._id")
-                            .matches(myContext));
-
+            final DocumentAssignable wantQuery = 
+                    or(
+                        where("ns").equals(ns)
+                         .and("op").in(constant("i"), constant("d"))
+                         .and("o._id").matches(myContext),
+                        where("ns").equals(ns)
+                         .and("op").equals("u")
+                         .and("o2._id").matches(myContext));
+            
             final Find.Builder builder = new Find.Builder();
             if (myLastTs != null) {
                 final DocumentBuilder tsQuery = BuilderFactory.start();
-                tsQuery.push(myLastTs.getName()).add(
-                        myLastTs.withName(ComparisonOperator.GT.getToken()));
-
+                tsQuery.push(myLastTs.getName())
+                          .add(myLastTs.withName(ComparisonOperator.GT.getToken()));
+            
                 builder.setQuery(and(tsQuery, wantQuery));
             }
             else {
                 builder.setQuery(wantQuery);
             }
-
+            
             builder.tailable();
-
-            myControls = myMongoClient.getDatabase("local")
-                    .getCollection("oplog.rs")
-                    .streamingFind(new OpLogNotification(), builder.build());
+            
+            MongoDatabase localDb = myMongoClient.getDatabase("local");
+            MongoCollection oplog = localDb.getCollection("oplog.rs");
+            myControls = oplog.streamingFind(new OpLogNotification(), builder.build());
         }
     }
 
@@ -135,6 +138,7 @@ public class Watcher {
     public synchronized void stop() {
         if (myControls != null) {
             myControls.close();
+            myControls = null;
         }
     }
 

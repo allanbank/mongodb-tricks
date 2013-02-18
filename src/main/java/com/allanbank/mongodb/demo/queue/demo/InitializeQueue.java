@@ -68,18 +68,18 @@ public class InitializeQueue {
         Find.Builder builder = new Find.Builder(BuilderFactory.start());
         builder.setTailable(true);
         builder.setAwaitData(false);
-        MongoIterator<Document> docs = collection.find(builder.build());
+        MongoIterator<Document> cursor = collection.find(builder.build());
 
         // Graceful shutdown of the iterator locally but not on the server.
-        docs.stop();
-        while (docs.hasNext()) {
-            System.out.println(docs.next());
+        cursor.stop();
+        while (cursor.hasNext()) {
+            System.out.println(cursor.next());
         }
 
         collection = db.getCollection("lookup");
         collection.delete(BuilderFactory.start().add("_id", collectionName));
         collection.insert(BuilderFactory.start().add("_id", collectionName)
-                .add("cursor", docs.asDocument()));
+                .add("cursor", cursor.asDocument()));
 
         // Printout the cursor document.
         System.out.println("Queue created: " + collectionName);
