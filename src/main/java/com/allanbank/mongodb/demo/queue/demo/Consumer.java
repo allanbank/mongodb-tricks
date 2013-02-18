@@ -59,6 +59,7 @@ public class Consumer {
 
         MongoIterator<Document> iter = client.restart(cursorElement
                 .getDocument());
+        iter.setBatchSize(3);
 
         long lastCount = 0;
         while (iter.hasNext()) {

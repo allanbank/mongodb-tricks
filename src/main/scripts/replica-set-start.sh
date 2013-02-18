@@ -23,10 +23,8 @@ ${mongod} --port 27019 --dbpath /tmp/mongodb-2 --replSet rs0        \
           --oplogSize 1000 --smallfiles --nojournal --nounixsocket  \
           --fork --logpath /tmp/mongodb-2/mongodb.log
 
-# Keep trying until it works.  Might take a second to get the mongod running.
-while ! ${mongo} --quiet ${host}:27017/admin --eval \
-   "printjson(rs.initiate({_id:\"rs0\",members:[{_id:0,host:\"${host}:27017\"},{_id:1,host:\"${host}:27018\"},{_id:2,host:\"${host}:27019\"}]}))" ; do
-  sleep 1
-done
+sleep 10
+${mongo} --quiet ${host}:27017/admin --eval \
+   "printjson(rs.initiate({_id:\"rs0\",members:[{_id:0,host:\"${host}:27017\"},{_id:1,host:\"${host}:27018\"},{_id:2,host:\"${host}:27019\"}]}))" 
 
-
+tail -f /tmp/mongo*/mongo*.log

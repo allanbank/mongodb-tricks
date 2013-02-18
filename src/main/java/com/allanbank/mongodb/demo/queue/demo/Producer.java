@@ -70,7 +70,7 @@ public class Producer {
 
             TimeUnit.MILLISECONDS.sleep(100);
 
-            if ((count % 1000) == 0) {
+            if ((count % 10) == 0) {
                 System.out.println(count);
             }
         }
