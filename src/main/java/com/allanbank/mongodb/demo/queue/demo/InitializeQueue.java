@@ -67,7 +67,7 @@ public class InitializeQueue {
 
         Find.Builder builder = new Find.Builder(BuilderFactory.start());
         builder.setTailable(true);
-        builder.setAwaitData(false);
+        // builder.setAwaitData(false); // Uncomment if not using patch for SERVER-8602
         MongoIterator<Document> cursor = collection.find(builder.build());
 
         // Graceful shutdown of the iterator locally but not on the server.
